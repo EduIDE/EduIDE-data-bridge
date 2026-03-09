@@ -6,7 +6,7 @@
     "publisher": "tum-aet",
     "repository": {
         "type": "git",
-        "url": "https://github.com/ls1intum/theia-data-bridge"
+        "url": "https://github.com/EduIDE/EduIDE-data-bridge"
     },
     "engines": {
         "vscode": "^1.106.0"
