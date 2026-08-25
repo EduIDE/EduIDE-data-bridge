@@ -25,6 +25,10 @@
                 "title": "Retrieve a list of environment variables"
             },
             {
+                "command": "dataBridge.getEnvState",
+                "title": "Retrieve the full injected environment and readiness flag"
+            },
+            {
                 "command": "dataBridge.showLogs",
                 "title": "Data Bridge: Show Logs"
             }
