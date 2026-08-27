@@ -36,8 +36,7 @@ jobs:
       - name: Build
         run: pnpm run build
 
-# Tests are not implemented yet
-      # - name: Test
-      #   run: pnpm run test
-      #   continue-on-error: true
+      # vscode-test launches a real VS Code instance, which needs a display on Linux.
+      - name: Test
+        run: xvfb-run -a pnpm run test
 

@@ -1,0 +1,16 @@
+{
+	/* The main tsconfig is type-check only (noEmit) and keeps the source module
+	   syntax as authored. vscode-test needs real CommonJS files on disk under
+	   out/, so the test build overrides just enough to emit them. */
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"outDir": "out",
+		"module": "commonjs",
+		"moduleResolution": "node10",
+		"verbatimModuleSyntax": false,
+		/* Source files import each other with explicit .ts extensions; rewrite
+		   those to .js so the emitted requires resolve. */
+		"rewriteRelativeImportExtensions": true
+	}
+}

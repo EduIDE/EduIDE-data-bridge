@@ -14,6 +14,7 @@ test-data/**
 .yarnrc
 vsc-extension-quickstart.md
 tsconfig.json
+tsconfig.test.json
 esbuild.js
 eslint.config.mjs
 pnpm-lock.yaml
