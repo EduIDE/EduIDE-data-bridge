@@ -63,3 +63,21 @@ Set the log level in VS Code settings:
 - Use `logger.warn()` for recoverable issues (e.g., 404s, validation warnings)
 - Use `logger.error()` for failures (e.g., server errors, exceptions)
 - Never use `showInformationMessage()` for routine operations—reserve for critical user notifications only
+
+### Testing
+
+```bash
+pnpm run test
+```
+
+`vscode-test` downloads and launches a real VS Code instance, so the tests need a display. On a
+headless machine (including CI) run them under `xvfb-run -a pnpm run test`.
+
+The `pretest` hook compiles the sources with `tsconfig.test.json`, which is the only place emit is
+configured: the main `tsconfig.json` is type-check only, so the test build overrides it to emit
+CommonJS into `out/`. `.vscode-test.mjs` then picks up `out/test/**/*.test.js`.
+
+### Dependency updates
+
+Renovate keeps dependencies current. `renovate.json` extends the org-wide preset in
+[`EduIDE/.github`](https://github.com/EduIDE/.github), so repo-local config stays minimal.
