@@ -18,8 +18,11 @@ It will store those data in memory and offer them to other extensions via VSCode
 The extension exposes a set of VSCode commands to handle retrieval of data.
 
 - `dataBridge.getEnv`
-    - Takes a list of environment variables
-    - Returns a dictionary of stored environment variables
+    - Takes a list of environment variable names
+    - Returns a dictionary of the requested stored environment variables
+- `dataBridge.getEnvState`
+    - Takes no arguments
+    - Returns `{ injected: boolean, environment: Record<string, string> }`, where `environment` is the full stored map and `injected` is `true` once at least one `POST /data` injection has been applied. Consumers that do not know the variable names in advance poll this until `injected` is `true`, then read every key. Injection is applied atomically, so a `true` `injected` flag always accompanies a complete map.
 
 ### Data Storage
 
