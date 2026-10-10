@@ -15,18 +15,21 @@ It will store those data in memory and offer them to other extensions via VSCode
 
 #### Authentication
 
-`POST /data` requires a shared secret. The server reads the expected token from the
-`DATA_BRIDGE_AUTH_TOKEN` environment variable, and the caller must present it as a
-bearer token:
+`POST /data` requires the session's own secret. The server reads the expected value
+from the `THEIACLOUD_SESSION_SECRET` environment variable, which Theia Cloud already
+injects into every IDE pod, and the caller must present it as a bearer token:
 
 ```
-Authorization: Bearer <DATA_BRIDGE_AUTH_TOKEN>
+Authorization: Bearer <THEIACLOUD_SESSION_SECRET>
 ```
+
+The operator sends exactly this header (EduIDE-Cloud #146), so the two sides match
+end-to-end with no new secret to wire or rotate.
 
 The token is compared in constant time. Requests with a missing or wrong token are
 rejected with `401`.
 
-The server fails closed: if `DATA_BRIDGE_AUTH_TOKEN` is unset (or empty), every
+The server fails closed: if `THEIACLOUD_SESSION_SECRET` is unset (or empty), every
 `POST /data` request is rejected with `401` and a warning is logged at startup.
 There is no "no auth" mode.
 

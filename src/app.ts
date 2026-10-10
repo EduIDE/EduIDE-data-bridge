@@ -11,9 +11,12 @@ import logger from "./service/logger.ts";
 const DEFAULT_PORT = 16281;
 
 // Name of the env var holding the shared secret the server requires on every
-// state-changing request. If it is unset the server fails closed (rejects all
-// such requests) rather than defaulting to no authentication.
-const AUTH_TOKEN_ENV = "DATA_BRIDGE_AUTH_TOKEN";
+// state-changing request. This is the session's own secret, already present in
+// the IDE pod as THEIACLOUD_SESSION_SECRET; the operator sends the same value as
+// `Authorization: Bearer <sessionSecret>` (EduIDE-Cloud #146). Using it means no
+// separate token to wire or rotate. If it is unset the server fails closed
+// (rejects all such requests) rather than defaulting to no authentication.
+const AUTH_TOKEN_ENV = "THEIACLOUD_SESSION_SECRET";
 
 function getExpectedToken(): string | undefined {
     const token = process.env[AUTH_TOKEN_ENV];
