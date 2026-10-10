@@ -13,6 +13,33 @@ It offers an endpoint `POST /data` to inject data.
 
 It will store those data in memory and offer them to other extensions via VSCode commands.
 
+#### Authentication
+
+`POST /data` requires the session's own secret. The server reads the expected value
+from the `THEIACLOUD_SESSION_SECRET` environment variable, which Theia Cloud already
+injects into every IDE pod, and the caller must present it as a bearer token:
+
+```
+Authorization: Bearer <THEIACLOUD_SESSION_SECRET>
+```
+
+The operator sends exactly this header (EduIDE-Cloud #146), so the two sides match
+end-to-end with no new secret to wire or rotate.
+
+The token is compared in constant time. Requests with a missing or wrong token are
+rejected with `401`.
+
+The server fails closed: if `THEIACLOUD_SESSION_SECRET` is unset (or empty), every
+`POST /data` request is rejected with `401` and a warning is logged at startup.
+There is no "no auth" mode.
+
+`GET /health` stays public so it can be used as a readiness probe.
+
+The listener binds to `0.0.0.0` because the injection caller reaches the server from
+another pod over the flat pod network. The shared secret is the access control; a
+NetworkPolicy restricting which pods may reach port `16281` is still required as
+defence in depth.
+
 ### Data Retrieval
 
 The extension exposes a set of VSCode commands to handle retrieval of data.
