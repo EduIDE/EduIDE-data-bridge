@@ -1,14 +1,68 @@
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { validator } from "hono/validator";
 import { dataInjectRequestSchema } from "./schema.ts";
 import { type } from "arktype";
 import type DataService from "./service/data.ts";
 import { serve, type ServerType } from "@hono/node-server";
+import { timingSafeEqual } from "node:crypto";
 import logger from "./service/logger.ts";
 
 const DEFAULT_PORT = 16281;
 
-function createApp(dataService: DataService) {
+// Name of the env var holding the shared secret the server requires on every
+// state-changing request. If it is unset the server fails closed (rejects all
+// such requests) rather than defaulting to no authentication.
+const AUTH_TOKEN_ENV = "DATA_BRIDGE_AUTH_TOKEN";
+
+function getExpectedToken(): string | undefined {
+    const token = process.env[AUTH_TOKEN_ENV];
+    return token && token.length > 0 ? token : undefined;
+}
+
+function extractBearerToken(authorizationHeader: string | undefined): string | undefined {
+    if (!authorizationHeader) {
+        return undefined;
+    }
+    const match = /^Bearer\s+(.+)$/i.exec(authorizationHeader.trim());
+    return match ? match[1] : undefined;
+}
+
+// Constant-time comparison with a length guard so we never leak token length or
+// content through timing. timingSafeEqual throws on length mismatch, so bail out
+// early when the lengths differ.
+function tokensMatch(presented: string, expected: string): boolean {
+    const presentedBytes = Buffer.from(presented);
+    const expectedBytes = Buffer.from(expected);
+    if (presentedBytes.length !== expectedBytes.length) {
+        return false;
+    }
+    return timingSafeEqual(presentedBytes, expectedBytes);
+}
+
+// Guards state-changing endpoints with the shared secret. The pod network is
+// flat, so any pod can reach this server; the token is what keeps a session's
+// env/secrets from being overwritten by another pod. Fails closed when the
+// expected token is not configured.
+const requireAuth: MiddlewareHandler = async (c, next) => {
+    const expected = getExpectedToken();
+    if (!expected) {
+        logger.warn(
+            `Rejecting ${c.req.method} ${c.req.path}: ${AUTH_TOKEN_ENV} is not set, failing closed`,
+        );
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const presented = extractBearerToken(c.req.header("Authorization"));
+    if (!presented || !tokensMatch(presented, expected)) {
+        logger.warn(`Rejecting unauthorized ${c.req.method} ${c.req.path}`);
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    await next();
+};
+
+export function createApp(dataService: DataService) {
     const app = new Hono();
 
     // Request logging middleware
@@ -19,9 +73,12 @@ function createApp(dataService: DataService) {
         logger.debug(`${c.req.method} ${c.req.path} ${c.res.status} (${duration}ms)`);
     });
 
-    // Data injection endpoint
+    // Data injection endpoint. Authentication runs before validation so that an
+    // unauthenticated caller can never probe the schema. A schema failure is a
+    // bad request (400), distinct from an authentication failure (401).
     app.post(
         "/data",
+        requireAuth,
         validator("json", (value, c) => {
             const parsed = dataInjectRequestSchema(value);
             if (parsed instanceof type.errors) {
@@ -29,7 +86,7 @@ function createApp(dataService: DataService) {
                     {
                         error: parsed.summary,
                     },
-                    401,
+                    400,
                 );
             }
             return parsed;
@@ -59,13 +116,13 @@ function createApp(dataService: DataService) {
         );
     });
 
-    // Error handler
+    // Error handler. Details are logged server-side only; the caller gets a
+    // generic message so we never leak internals (e.g. err.message) over the wire.
     app.onError((err, c) => {
         logger.error("Internal server error", err);
         return c.json(
             {
                 error: "Internal server error",
-                message: err.message,
             },
             500,
         );
@@ -90,8 +147,18 @@ function getPort(): number {
 export function startServer(dataService: DataService): ServerType | undefined {
     try {
         const app = createApp(dataService);
+        // Bound to 0.0.0.0 because the injection caller (the platform/operator)
+        // reaches this server from another pod over the flat pod network. The
+        // shared secret is the access control; a NetworkPolicy restricting who
+        // may reach this port is still required as defence in depth.
         const hostname = "0.0.0.0";
         const port = getPort();
+
+        if (!getExpectedToken()) {
+            logger.warn(
+                `${AUTH_TOKEN_ENV} is not set: the server will reject every /data request (failing closed). Set ${AUTH_TOKEN_ENV} to enable injection.`,
+            );
+        }
         const server = serve({
             ...app,
             port,
