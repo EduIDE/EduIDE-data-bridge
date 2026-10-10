@@ -13,6 +13,30 @@ It offers an endpoint `POST /data` to inject data.
 
 It will store those data in memory and offer them to other extensions via VSCode commands.
 
+#### Authentication
+
+`POST /data` requires a shared secret. The server reads the expected token from the
+`DATA_BRIDGE_AUTH_TOKEN` environment variable, and the caller must present it as a
+bearer token:
+
+```
+Authorization: Bearer <DATA_BRIDGE_AUTH_TOKEN>
+```
+
+The token is compared in constant time. Requests with a missing or wrong token are
+rejected with `401`.
+
+The server fails closed: if `DATA_BRIDGE_AUTH_TOKEN` is unset (or empty), every
+`POST /data` request is rejected with `401` and a warning is logged at startup.
+There is no "no auth" mode.
+
+`GET /health` stays public so it can be used as a readiness probe.
+
+The listener binds to `0.0.0.0` because the injection caller reaches the server from
+another pod over the flat pod network. The shared secret is the access control; a
+NetworkPolicy restricting which pods may reach port `16281` is still required as
+defence in depth.
+
 ### Data Retrieval
 
 The extension exposes a set of VSCode commands to handle retrieval of data.
