@@ -77,7 +77,7 @@
     },
     "pnpm": {
         "overrides": {
-            "@ark/util": "0.54.0"
+            "@ark/util": "0.56.8"
         }
     }
 }
