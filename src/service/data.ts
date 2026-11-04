@@ -17,8 +17,11 @@ class DataService {
         }
     }
 
-    public getEnvVars(request: getEnvCommandRequest): Record<string, string> {
+    public async getEnvVars(request: getEnvCommandRequest): Promise<Record<string, string>> {
         logger.debug(`Retrieving ${request.length} environment variable(s)`);
+        if (request.some((key) => this.storage.getEnv(key) === undefined)) {
+            await this.storage.reload();
+        }
         return Object.fromEntries(
             request
                 .map((key) => [key, this.storage.getEnv(key)])

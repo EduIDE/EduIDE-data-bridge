@@ -6,4 +6,5 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+- A second browser window now receives the injected environment, even though only the first window holds the port
 - Initial release
