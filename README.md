@@ -13,6 +13,40 @@ It offers an endpoint `POST /data` to inject data.
 
 It will store those data in memory and offer them to other extensions via VSCode commands.
 
+#### Authentication
+
+`POST /data` requires the token of the pool instance the extension runs in. The
+server reads the expected value from the `DATA_BRIDGE_TOKEN` environment variable,
+and the caller must present it as a bearer token:
+
+```
+Authorization: Bearer <DATA_BRIDGE_TOKEN>
+```
+
+The operator keeps one random token per prewarmed instance in a Kubernetes Secret,
+passes it to the pod as `DATA_BRIDGE_TOKEN` via `secretKeyRef`, sends it on every
+injection, and writes a new one before the pod restarts for the next session
+(EduIDE-Cloud#156, design in EduIDE-Cloud#157). Lazy sessions do not use the data
+bridge.
+
+The token is compared in constant time. Requests with a missing or wrong token are
+rejected with `401`.
+
+The server fails closed: if `DATA_BRIDGE_TOKEN` is unset (or empty), every
+`POST /data` request is rejected with `401` and a warning is logged at startup.
+There is no "no auth" mode.
+
+Roll out the operator and the chart that lets it manage Secrets before this data
+bridge. An older operator sends no header, so this server would reject every
+injection.
+
+`GET /health` stays public so it can be used as a readiness probe.
+
+The listener binds to `0.0.0.0` because the injection caller reaches the server from
+another pod over the flat pod network. The token is the access control; a
+NetworkPolicy restricting which pods may reach port `16281` is still required as
+defence in depth.
+
 ### Data Retrieval
 
 The extension exposes a set of VSCode commands to handle retrieval of data.
