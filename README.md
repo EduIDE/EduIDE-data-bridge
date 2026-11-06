@@ -16,15 +16,19 @@ It will store those data in memory and offer them to other extensions via VSCode
 #### Authentication
 
 `POST /data` requires the session's own secret. The server reads the expected value
-from the `THEIACLOUD_SESSION_SECRET` environment variable, which Theia Cloud already
-injects into every IDE pod, and the caller must present it as a bearer token:
+from the `THEIACLOUD_SESSION_SECRET` environment variable of the IDE pod, and the
+caller must present it as a bearer token:
 
 ```
 Authorization: Bearer <THEIACLOUD_SESSION_SECRET>
 ```
 
-The operator sends exactly this header (EduIDE-Cloud #146), so the two sides match
-end-to-end with no new secret to wire or rotate.
+The operator sends this header from EduIDE-Cloud #156 on. Older operators send no
+header, so roll out the operator before this data bridge.
+
+Prewarmed (eager) pool pods start before their session exists, so Theia Cloud sets
+`THEIACLOUD_SESSION_SECRET` to an empty value there and this server rejects their
+injection. Lazy sessions do not use the data bridge.
 
 The token is compared in constant time. Requests with a missing or wrong token are
 rejected with `401`.

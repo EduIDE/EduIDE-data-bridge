@@ -1,6 +1,6 @@
 import * as assert from "assert";
 
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 import { createApp } from "../app.ts";
 import DataService from "../service/data.ts";
 import DataStorage from "../service/storage.ts";
@@ -8,29 +8,16 @@ import SecretStoragePersistence from "../service/persistence.ts";
 
 // Minimal in-memory SecretStorage so the server can be exercised without a real
 // extension context.
-class InMemorySecretStorage implements vscode.SecretStorage {
-    private data = new Map<string, string>();
-    private emitter = new vscode.EventEmitter<vscode.SecretStorageChangeEvent>();
-    public readonly onDidChange = this.emitter.event;
-
-    async get(key: string): Promise<string | undefined> {
-        return this.data.get(key);
-    }
-    async store(key: string, value: string): Promise<void> {
-        this.data.set(key, value);
-        this.emitter.fire({ key });
-    }
-    async delete(key: string): Promise<void> {
-        this.data.delete(key);
-        this.emitter.fire({ key });
-    }
-    async keys(): Promise<string[]> {
-        return [...this.data.keys()];
-    }
+function inMemorySecrets(): vscode.SecretStorage {
+    const data = new Map<string, string>();
+    return {
+        get: async (key: string) => data.get(key),
+        store: async (key: string, value: string) => void data.set(key, value),
+    } as unknown as vscode.SecretStorage;
 }
 
 async function newApp(): Promise<ReturnType<typeof createApp>> {
-    const persistence = new SecretStoragePersistence(new InMemorySecretStorage());
+    const persistence = new SecretStoragePersistence(inMemorySecrets());
     const storage = await DataStorage.withPersistence(persistence);
     return createApp(new DataService(storage));
 }
@@ -90,6 +77,14 @@ suite("Data Bridge - HTTP authentication", () => {
         delete process.env.THEIACLOUD_SESSION_SECRET;
         const app = await newApp();
         const res = await app.request("/data", injectRequest({ Authorization: `Bearer ${TOKEN}` }));
+        assert.strictEqual(res.status, 401);
+    });
+
+    // A prewarmed pod starts before its session exists and gets an empty secret.
+    test("fails closed when THEIACLOUD_SESSION_SECRET is empty", async () => {
+        process.env.THEIACLOUD_SESSION_SECRET = "";
+        const app = await newApp();
+        const res = await app.request("/data", injectRequest({ Authorization: "Bearer " }));
         assert.strictEqual(res.status, 401);
     });
 
