@@ -9,3 +9,4 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - A second browser window now receives the injected environment, even though only the first window holds the port
 - Initial release
 - Bump hono and @hono/node-server and pin patched transitive dependencies via pnpm overrides to fix Dependabot security alerts
+- Bump @hono/node-server to 2.x and move every minimatch from 7 to 11.0.0 to 11.0.x, fixing the remaining Dependabot alerts
