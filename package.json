@@ -71,7 +71,7 @@
         "typescript-eslint": "^8.46.3"
     },
     "dependencies": {
-        "@hono/node-server": "^1.19.18",
+        "@hono/node-server": "^2.0.0",
         "arktype": "^2.1.26",
         "hono": "^4.13.16"
     },
