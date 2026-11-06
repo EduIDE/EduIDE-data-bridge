@@ -10,5 +10,5 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Initial release
 - Bump hono and @hono/node-server and pin patched transitive dependencies via pnpm overrides to fix Dependabot security alerts
 - Bump @hono/node-server to 2.x and move every minimatch copy between 7 and 11.0.0 to 11.0.x, fixing the remaining Dependabot alerts
-- Require the session's own secret (`THEIACLOUD_SESSION_SECRET` from the IDE pod) as an `Authorization: Bearer` token on `POST /data`, compared in constant time. The server fails closed when the secret is unset. Needs an operator that sends the header (EduIDE-Cloud #156).
+- Require the pool instance's token (`DATA_BRIDGE_TOKEN`, set by the operator from a per-instance Secret) as an `Authorization: Bearer` token on `POST /data`, compared in constant time. The server fails closed when the token is unset. Needs an operator that sends the header (EduIDE-Cloud#156, design in EduIDE-Cloud#157).
 - Stop returning internal error messages to callers; log details server-side only.

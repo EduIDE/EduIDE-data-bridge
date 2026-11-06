@@ -10,13 +10,12 @@ import logger from "./service/logger.ts";
 
 const DEFAULT_PORT = 16281;
 
-// Name of the env var holding the shared secret the server requires on every
-// state-changing request. This is the session's own secret from the IDE pod's
-// THEIACLOUD_SESSION_SECRET; the operator sends the same value as
-// `Authorization: Bearer <sessionSecret>` (EduIDE-Cloud #156). If it is unset or
-// empty (as in a prewarmed pod before its session exists) the server fails closed
-// (rejects all such requests) rather than defaulting to no authentication.
-const AUTH_TOKEN_ENV = "THEIACLOUD_SESSION_SECRET";
+// Name of the env var holding the token the server requires on every
+// state-changing request. The operator keeps one random token per prewarmed pool
+// instance in a Secret, hands it to the pod as DATA_BRIDGE_TOKEN and sends it as
+// `Authorization: Bearer <token>` (EduIDE-Cloud #157). If it is unset or empty the
+// server fails closed rather than defaulting to no authentication.
+const AUTH_TOKEN_ENV = "DATA_BRIDGE_TOKEN";
 
 function getExpectedToken(): string | undefined {
     const token = process.env[AUTH_TOKEN_ENV];
@@ -43,7 +42,7 @@ function tokensMatch(presented: string, expected: string): boolean {
     return timingSafeEqual(presentedBytes, expectedBytes);
 }
 
-// Guards state-changing endpoints with the shared secret. The pod network is
+// Guards state-changing endpoints with the instance token. The pod network is
 // flat, so any pod can reach this server; the token is what keeps a session's
 // env/secrets from being overwritten by another pod. Fails closed when the
 // expected token is not configured.
@@ -152,7 +151,7 @@ export function startServer(dataService: DataService): ServerType | undefined {
         const app = createApp(dataService);
         // Bound to 0.0.0.0 because the injection caller (the platform/operator)
         // reaches this server from another pod over the flat pod network. The
-        // shared secret is the access control; a NetworkPolicy restricting who
+        // instance token is the access control; a NetworkPolicy restricting who
         // may reach this port is still required as defence in depth.
         const hostname = "0.0.0.0";
         const port = getPort();

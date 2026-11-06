@@ -15,32 +15,35 @@ It will store those data in memory and offer them to other extensions via VSCode
 
 #### Authentication
 
-`POST /data` requires the session's own secret. The server reads the expected value
-from the `THEIACLOUD_SESSION_SECRET` environment variable of the IDE pod, and the
-caller must present it as a bearer token:
+`POST /data` requires the token of the pool instance the extension runs in. The
+server reads the expected value from the `DATA_BRIDGE_TOKEN` environment variable,
+and the caller must present it as a bearer token:
 
 ```
-Authorization: Bearer <THEIACLOUD_SESSION_SECRET>
+Authorization: Bearer <DATA_BRIDGE_TOKEN>
 ```
 
-The operator sends this header from EduIDE-Cloud #156 on. Older operators send no
-header, so roll out the operator before this data bridge.
-
-Prewarmed (eager) pool pods start before their session exists, so Theia Cloud sets
-`THEIACLOUD_SESSION_SECRET` to an empty value there and this server rejects their
-injection. Lazy sessions do not use the data bridge.
+The operator keeps one random token per prewarmed instance in a Kubernetes Secret,
+passes it to the pod as `DATA_BRIDGE_TOKEN` via `secretKeyRef`, sends it on every
+injection, and writes a new one before the pod restarts for the next session
+(EduIDE-Cloud#156, design in EduIDE-Cloud#157). Lazy sessions do not use the data
+bridge.
 
 The token is compared in constant time. Requests with a missing or wrong token are
 rejected with `401`.
 
-The server fails closed: if `THEIACLOUD_SESSION_SECRET` is unset (or empty), every
+The server fails closed: if `DATA_BRIDGE_TOKEN` is unset (or empty), every
 `POST /data` request is rejected with `401` and a warning is logged at startup.
 There is no "no auth" mode.
+
+Roll out the operator and the chart that lets it manage Secrets before this data
+bridge. An older operator sends no header, so this server would reject every
+injection.
 
 `GET /health` stays public so it can be used as a readiness probe.
 
 The listener binds to `0.0.0.0` because the injection caller reaches the server from
-another pod over the flat pod network. The shared secret is the access control; a
+another pod over the flat pod network. The token is the access control; a
 NetworkPolicy restricting which pods may reach port `16281` is still required as
 defence in depth.
 

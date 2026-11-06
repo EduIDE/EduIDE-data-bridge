@@ -38,26 +38,26 @@ suite("Data Bridge - HTTP authentication", () => {
     let savedToken: string | undefined;
 
     setup(() => {
-        savedToken = process.env.THEIACLOUD_SESSION_SECRET;
+        savedToken = process.env.DATA_BRIDGE_TOKEN;
     });
 
     teardown(() => {
         if (savedToken === undefined) {
-            delete process.env.THEIACLOUD_SESSION_SECRET;
+            delete process.env.DATA_BRIDGE_TOKEN;
         } else {
-            process.env.THEIACLOUD_SESSION_SECRET = savedToken;
+            process.env.DATA_BRIDGE_TOKEN = savedToken;
         }
     });
 
     test("rejects POST /data without a token", async () => {
-        process.env.THEIACLOUD_SESSION_SECRET = TOKEN;
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
         const app = await newApp();
         const res = await app.request("/data", injectRequest());
         assert.strictEqual(res.status, 401);
     });
 
     test("rejects POST /data with a wrong token", async () => {
-        process.env.THEIACLOUD_SESSION_SECRET = TOKEN;
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
         const app = await newApp();
         const res = await app.request(
             "/data",
@@ -67,29 +67,44 @@ suite("Data Bridge - HTTP authentication", () => {
     });
 
     test("accepts POST /data with the correct token", async () => {
-        process.env.THEIACLOUD_SESSION_SECRET = TOKEN;
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
         const app = await newApp();
         const res = await app.request("/data", injectRequest({ Authorization: `Bearer ${TOKEN}` }));
         assert.strictEqual(res.status, 200);
     });
 
-    test("fails closed when THEIACLOUD_SESSION_SECRET is unset", async () => {
-        delete process.env.THEIACLOUD_SESSION_SECRET;
+    test("fails closed when DATA_BRIDGE_TOKEN is unset", async () => {
+        delete process.env.DATA_BRIDGE_TOKEN;
         const app = await newApp();
         const res = await app.request("/data", injectRequest({ Authorization: `Bearer ${TOKEN}` }));
         assert.strictEqual(res.status, 401);
     });
 
-    // A prewarmed pod starts before its session exists and gets an empty secret.
-    test("fails closed when THEIACLOUD_SESSION_SECRET is empty", async () => {
-        process.env.THEIACLOUD_SESSION_SECRET = "";
+    // An instance whose token Secret could not be written gets no token.
+    test("fails closed when DATA_BRIDGE_TOKEN is empty", async () => {
+        process.env.DATA_BRIDGE_TOKEN = "";
         const app = await newApp();
         const res = await app.request("/data", injectRequest({ Authorization: "Bearer " }));
         assert.strictEqual(res.status, 401);
     });
 
+    test("does not accept the session secret instead of the token", async () => {
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
+        process.env.THEIACLOUD_SESSION_SECRET = "session-secret";
+        try {
+            const app = await newApp();
+            const res = await app.request(
+                "/data",
+                injectRequest({ Authorization: "Bearer session-secret" }),
+            );
+            assert.strictEqual(res.status, 401);
+        } finally {
+            delete process.env.THEIACLOUD_SESSION_SECRET;
+        }
+    });
+
     test("health endpoint stays public", async () => {
-        delete process.env.THEIACLOUD_SESSION_SECRET;
+        delete process.env.DATA_BRIDGE_TOKEN;
         const app = await newApp();
         const res = await app.request("/health");
         assert.strictEqual(res.status, 200);
