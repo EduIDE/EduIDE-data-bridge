@@ -21,6 +21,16 @@ export default class CommandRegistry {
             return this.dataService.getEnvVars(request);
         });
 
+        // Register command to return the full injected environment plus a readiness
+        // flag (no arguments, so it bypasses the schema-validating helper).
+        const getEnvStateDisposable = vscode.commands.registerCommand(
+            `${CommandRegistry.COMMAND_PREFIX}.getEnvState`,
+            () => {
+                return this.dataService.getEnvState();
+            },
+        );
+        this.context.subscriptions.push(getEnvStateDisposable);
+
         // Register command to show logs (no validation needed)
         const showLogsDisposable = vscode.commands.registerCommand(
             `${CommandRegistry.COMMAND_PREFIX}.showLogs`,
