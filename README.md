@@ -81,3 +81,8 @@ CommonJS into `out/`. `.vscode-test.mjs` then picks up `out/test/**/*.test.js`.
 
 Renovate keeps dependencies current. `renovate.json` extends the org-wide preset in
 [`EduIDE/.github`](https://github.com/EduIDE/.github), so repo-local config stays minimal.
+
+`package.json` pins pnpm in `packageManager`, and CI and Renovate both use that version. Keep it on
+pnpm 10 while the overrides live under `pnpm.overrides` in `package.json`: pnpm 11 ignores that
+field, drops the overrides from the lockfile, and `pnpm install --frozen-lockfile` then fails with
+`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
