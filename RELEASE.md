@@ -8,7 +8,7 @@ The release process is automated using GitHub Actions and consists of three work
 
 1. **Build & Test** (`build.yml`) - Runs on every push and PR to validate the code
 2. **Package** (`package.yml`) - Builds the `.vsix` file (can be triggered manually or by release)
-3. **Release** (`release.yml`) - Publishes to VS Code Marketplace and/or Open VSX Registry
+3. **Release** (`release.yml`) - Attaches the `.vsix` file to the GitHub release
 
 ## Release Process
 
@@ -41,45 +41,27 @@ Once you publish the release, GitHub Actions will automatically:
 3. ✅ Update `package.json` version to match the tag (strips the `v` prefix)
 4. ✅ Build the extension (`pnpm run build`)
 5. ✅ Package the extension into a `.vsix` file (`pnpm run package`)
-6. ✅ Publish to VS Code Marketplace (if enabled)
-7. ✅ Publish to Open VSX Registry (if enabled)
-8. ✅ Upload the `.vsix` file as a release asset
+6. ✅ Upload the `.vsix` file as a release asset (replacing an existing one on a re-run)
+
+The workflow does not publish to the VS Code Marketplace or Open VSX.
 
 ## Configuration
 
-### Required Secrets
+### Secrets
 
-You need to configure the following secrets in your GitHub repository settings:
+The release needs no secrets. It uploads the `.vsix` with the workflow's own `GITHUB_TOKEN`, which the `release` job gets with `contents: write`.
 
-#### For VS Code Marketplace Publishing
+### Publishing to Open VSX (not enabled)
 
-1. **`VSCE_PUBLISH_TOKEN`** - Personal Access Token from Azure DevOps
-   - Go to https://dev.azure.com
-   - Create a new organization if needed
-   - User Settings → Personal Access Tokens → New Token
-   - Scopes: `Marketplace` → `Acquire` and `Manage`
-   - Copy the token and add as a GitHub secret
+To publish like scorpio, which uses Open VSX trusted publishing instead of a stored token:
 
-#### For Open VSX Registry Publishing
-
-2. **`OVSX_PUBLISH_TOKEN`** - Access Token from Open VSX
-   - Go to https://open-vsx.org
-   - Sign in with GitHub
-   - Settings → Access Tokens → New Access Token
-   - Copy the token and add as a GitHub secret
-
-### Required Variables
-
-Configure these variables in Settings → Secrets and variables → Actions → Variables:
-
-- **`PUBLISH_VSCODE`** - Set to `true` to enable VS Code Marketplace publishing
-- **`PUBLISH_OVSX`** - Set to `true` to enable Open VSX Registry publishing
-
-> **Note**: You can enable one or both publishing targets. If you only want to create `.vsix` files without publishing, set both to `false` or leave them unset.
+1. Register `EduIDE/EduIDE-data-bridge` (workflow `release.yml`, environment `prod`) as a trusted publisher for `tum-aet.data-bridge` on https://open-vsx.org
+2. Add `id-token: write` to the `release` job's permissions
+3. Add a step before the upload: `npx ovsx@1.3.0 publish --trusted-publishing ./data-bridge-<version>.vsix`
 
 ### Environment Protection (Recommended)
 
-For additional safety, configure a `prod` environment:
+The `release` job runs in the `prod` environment. Configure it:
 
 1. Go to Settings → Environments → New environment
 2. Name: `prod`
@@ -164,11 +146,10 @@ Common issues:
 - Linting errors: Run `pnpm run lint` locally
 - Missing dependencies: Ensure `pnpm-lock.yaml` is committed
 
-### Publishing Fails
+### Upload Fails
 
-1. **VS Code Marketplace**: Verify your `VSCE_PUBLISH_TOKEN` is valid
-2. **Open VSX**: Verify your `OVSX_PUBLISH_TOKEN` is valid
-3. **Publisher Mismatch**: Ensure the `publisher` field in `package.json` matches your marketplace publisher ID
+1. **Missing release**: The workflow runs on `release: released`, so the release must exist and be published (not a draft or pre-release)
+2. **Asset name**: The packaged file must be `data-bridge-<version>.vsix`, matching the `name` in `package.json`
 
 ### Extension Not Working After Install
 
@@ -185,24 +166,22 @@ Runs on every push/PR. Validates code quality (type checking, linting, building)
 Reusable workflow that builds and packages the `.vsix` file. Can be called by other workflows.
 
 ### `.github/workflows/release.yml`
-Triggered when you publish a GitHub release. Packages and publishes the extension.
+Triggered when a GitHub release is published (`release: released`, so pre-releases do not trigger it). Packages the extension and attaches the `.vsix` to the release.
 
 ## Best Practices
 
 1. **Test Before Release**: Always test the built `.vsix` file locally before publishing
 2. **Update Documentation**: Keep README.md and CHANGELOG.md up to date
-3. **Use Pre-releases**: For beta versions, mark the GitHub release as "pre-release"
-4. **Gradual Rollout**: Consider releasing to Open VSX first (for Theia testing) before VS Code Marketplace
-5. **Version Tags**: Always use `v` prefix for tags (e.g., `v1.0.0`)
+3. **Use Pre-releases**: For beta versions, mark the GitHub release as "pre-release". The release workflow skips it and runs once you promote it to a full release
+4. **Version Tags**: Always use `v` prefix for tags (e.g., `v1.0.0`)
 
 ## Next Steps
 
 After setting up the release workflow:
 
-1. Configure the required secrets and variables
+1. Configure the `prod` environment
 2. Make a test release (e.g., `v0.1.0`)
 3. Verify the extension works when installed from the `.vsix` file
-4. If publishing to marketplaces, verify it appears correctly
 
 ## Additional Resources
 
