@@ -33,6 +33,20 @@ suite("Environment shared across browser windows", () => {
         });
     });
 
+    test("a window that already read a value sees a later injection", async () => {
+        const secrets = sharedSecrets();
+        const first = await newWindow(secrets);
+        const second = await newWindow(secrets);
+        await first.inject({ environment: { GIT_USER: "Ada Lovelace" } });
+        await second.getEnvVars(["GIT_USER"]);
+
+        await first.inject({ environment: { GIT_USER: "Grace Hopper" } });
+
+        assert.deepStrictEqual(await second.getEnvVars(["GIT_USER"]), {
+            GIT_USER: "Grace Hopper",
+        });
+    });
+
     test("the window holding the port keeps its values", async () => {
         const first = await newWindow(sharedSecrets());
         await first.inject({ environment: { GIT_USER: "Ada Lovelace" } });
