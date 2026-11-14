@@ -4,9 +4,9 @@ Releases are manual and run by `.github/workflows/release.yml`. Nothing releases
 
 ## Release Process
 
-1. Open a release pull request: `pnpm version X.Y.Z --no-git-tag-version` and move the `## [Unreleased]` entries of `CHANGELOG.md` under `## [X.Y.Z] - YYYY-MM-DD`. The CHANGELOG section becomes the GitHub release notes.
+1. Open a release pull request that moves the `## [Unreleased]` entries of `CHANGELOG.md` under `## [X.Y.Z] - YYYY-MM-DD`. The CHANGELOG section becomes the GitHub release notes.
 2. After it is merged, run `gh workflow run release.yml -R EduIDE/EduIDE-data-bridge --ref main -f version=X.Y.Z`.
-3. The workflow packages the extension (`pnpm run build`, `pnpm run package`), creates tag `vX.Y.Z` and the GitHub Release, and attaches `data-bridge-X.Y.Z.vsix`.
+3. The workflow drafts the GitHub Release, packages the extension (`pnpm run build`, `pnpm run package`, version stamped from the input), attaches `data-bridge-X.Y.Z.vsix`, verifies it and publishes the release, which creates tag `vX.Y.Z`. A failed run leaves a draft and no tag; use "Re-run failed jobs".
 
 A release candidate (`-rc.N`, for example `0.0.18-rc.1`) can be dispatched from any branch and creates a GitHub prerelease.
 
@@ -16,7 +16,7 @@ The extension is not published to the VS Code Marketplace or Open VSX. EduIDE in
 
 - `build.yml` runs on every push and pull request (type check, lint, build, tests).
 - `package.yml` builds the `.vsix`. It runs on pull requests and pushes to `main`, and `release.yml` calls it with the version.
-- `release.yml` is the manual release. It calls the shared `EduIDE/.github` release workflow for validation, the tag and the GitHub Release.
+- `release.yml` is the manual release. It calls the shared `EduIDE/.github` release workflow for validation and the draft GitHub Release, and `release-publish.yml` to publish it at the end.
 
 ## Local Testing
 
