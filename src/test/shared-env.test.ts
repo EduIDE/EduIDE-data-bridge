@@ -55,4 +55,41 @@ suite("Environment shared across browser windows", () => {
             GIT_USER: "Ada Lovelace",
         });
     });
+
+    test("a read during an injection sees all of it or nothing", async () => {
+        const secrets = sharedSecrets();
+        let release!: () => void;
+        const slowStore = new Promise<void>((resolve) => (release = resolve));
+        const store = secrets.store.bind(secrets);
+        secrets.store = async (key: string, value: string) => {
+            await slowStore;
+            await store(key, value);
+        };
+        const window = await newWindow(secrets);
+        const keys = ["THEIA", "GIT_URI", "GIT_USER"];
+
+        const injecting = window.inject({
+            environment: { THEIA: "true", GIT_URI: "https://example.org/r.git", GIT_USER: "Ada" },
+        });
+        const seen = Object.keys(await window.getEnvVars(keys));
+        release();
+        await injecting;
+
+        assert.ok(seen.length === 0 || seen.length === keys.length, `saw only ${seen}`);
+    });
+
+    test("an empty injection writes nothing", async () => {
+        const secrets = sharedSecrets();
+        let writes = 0;
+        const store = secrets.store.bind(secrets);
+        secrets.store = async (key: string, value: string) => {
+            writes++;
+            await store(key, value);
+        };
+        const window = await newWindow(secrets);
+
+        await window.inject({ environment: {} });
+
+        assert.strictEqual(writes, 0);
+    });
 });

@@ -6,6 +6,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+- An injection becomes visible all at once: a reader no longer sees the first variable before the rest are set, which made Scorpio start without `GIT_URI` and skip the clone
 - A second browser window now receives the injected environment, even though only the first window holds the port
 - Initial release
 - Bump hono and @hono/node-server and pin patched transitive dependencies via pnpm overrides to fix Dependabot security alerts
