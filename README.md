@@ -23,7 +23,9 @@ The extension exposes a set of VSCode commands to handle retrieval of data.
 
 ### Data Storage
 
-The extension will store the data in memory.
+The extension will store the data in memory and in the VS Code secret storage.
+
+Every browser window starts its own plugin host and its own bridge, and only the first one gets the port. `dataBridge.getEnv` therefore re-reads the secret storage on every call, so the other windows receive the injected environment too.
 
 ## Development
 
