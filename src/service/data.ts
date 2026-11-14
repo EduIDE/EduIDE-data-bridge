@@ -12,6 +12,9 @@ class DataService {
     public async inject(request: DataInjectRequest): Promise<void> {
         const keys = Object.keys(request.environment).length;
         logger.debug(`Injecting ${keys} environment variable(s)`);
+        if (keys === 0) {
+            return;
+        }
         await this.storage.setEnvs(request.environment);
     }
 

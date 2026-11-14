@@ -77,4 +77,19 @@ suite("Environment shared across browser windows", () => {
 
         assert.ok(seen.length === 0 || seen.length === keys.length, `saw only ${seen}`);
     });
+
+    test("an empty injection writes nothing", async () => {
+        const secrets = sharedSecrets();
+        let writes = 0;
+        const store = secrets.store.bind(secrets);
+        secrets.store = async (key: string, value: string) => {
+            writes++;
+            await store(key, value);
+        };
+        const window = await newWindow(secrets);
+
+        await window.inject({ environment: {} });
+
+        assert.strictEqual(writes, 0);
+    });
 });
