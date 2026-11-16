@@ -13,7 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixes
 
 - A schema error returns `400` instead of `401`, a body over 64 KiB returns `413`, and a failure returns a generic `500` without the internal message ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
-- Only known keys are stored (others are ignored with a warning, extend with `DATA_BRIDGE_EXTRA_KEYS`), and an injection replaces the stored environment so a repeated injection changes nothing ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- Only known keys are stored, including `GIT_REF` and `GIT_SOURCE` (others are ignored, the response names them, extend with `DATA_BRIDGE_EXTRA_KEYS`), and an injection replaces the stored environment so a repeated injection changes nothing ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
 - A second browser window whose bridge cannot bind the port no longer logs that the server started or leaves an unhandled error ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
 
 ## [1.0.0] - 2026-11-16

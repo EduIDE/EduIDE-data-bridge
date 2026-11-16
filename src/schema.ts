@@ -16,6 +16,8 @@ const KNOWN_KEYS = [
     "GIT_URI",
     "GIT_USER",
     "GIT_MAIL",
+    "GIT_REF",
+    "GIT_SOURCE",
     "ARTEMIS_URL",
     "ARTEMIS_TOKEN",
     "GRADLE_PREWARM",

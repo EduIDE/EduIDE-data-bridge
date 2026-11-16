@@ -9,19 +9,22 @@ class DataService {
         this.storage = storage;
     }
 
-    public async inject(request: DataInjectRequest): Promise<void> {
+    // Returns the names (never the values) of the keys that were not stored.
+    public async inject(request: DataInjectRequest): Promise<{ ignored: string[] }> {
         const allowed = allowedKeys();
         const entries = Object.entries(request.environment);
         const environment = Object.fromEntries(entries.filter(([key]) => allowed.has(key)));
-        const dropped = entries.length - Object.keys(environment).length;
-        if (dropped > 0) {
-            logger.warn(`Ignored ${dropped} environment variable(s) with an unknown name`);
+        const ignored = entries.map(([key]) => key).filter((key) => !allowed.has(key));
+        if (ignored.length > 0) {
+            logger.warn(`Ignored ${ignored.length} environment variable(s) with an unknown name`);
         }
         logger.debug(`Injecting ${Object.keys(environment).length} environment variable(s)`);
-        if (Object.keys(environment).length === 0) {
-            return;
+        // An empty request is a no-op. A request with only unknown keys still replaces the store,
+        // so values of an earlier injection never outlive a newer one.
+        if (entries.length > 0) {
+            await this.storage.replaceEnvs(environment);
         }
-        await this.storage.replaceEnvs(environment);
+        return { ignored };
     }
 
     public async getEnvVars(request: getEnvCommandRequest): Promise<Record<string, string>> {

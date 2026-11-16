@@ -73,6 +73,23 @@ suite("Data Bridge - HTTP authentication", () => {
         assert.strictEqual(res.status, 401);
     });
 
+    test("rejects a wrong token of the same length", async () => {
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
+        const app = await newApp();
+        const wrong = "x".repeat(TOKEN.length);
+        const res = await app.request("/data", injectRequest({ Authorization: `Bearer ${wrong}` }));
+        assert.strictEqual(res.status, 401);
+    });
+
+    test("rejects a scheme other than Bearer", async () => {
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
+        const app = await newApp();
+        for (const header of [`Basic ${TOKEN}`, TOKEN, `Token ${TOKEN}`]) {
+            const res = await app.request("/data", injectRequest({ Authorization: header }));
+            assert.strictEqual(res.status, 401, header);
+        }
+    });
+
     test("accepts POST /data with the correct token", async () => {
         process.env.DATA_BRIDGE_TOKEN = TOKEN;
         const app = await newApp();
@@ -164,6 +181,15 @@ suite("Data Bridge - request handling", () => {
         assert.deepStrictEqual(await service.getEnvVars(["GIT_USER", "EVIL"]), { GIT_USER: "Ada" });
     });
 
+    test("answers with the names of the keys it did not store", async () => {
+        const app = await newApp();
+        const res = await app.request(
+            "/data",
+            injectRequest(auth, { environment: { GIT_REF: "main", EVIL: "x", OTHER: "y" } }),
+        );
+        assert.deepStrictEqual(await res.json(), { ignored: ["EVIL", "OTHER"] });
+    });
+
     test("stores keys listed in DATA_BRIDGE_EXTRA_KEYS", async () => {
         process.env.DATA_BRIDGE_EXTRA_KEYS = "COURSE_ID, OTHER";
         const service = await newService();
@@ -184,6 +210,13 @@ suite("Data Bridge - request handling", () => {
         assert.deepStrictEqual(await service.getEnvVars(["GIT_URI", "GIT_USER"]), {
             GIT_URI: "https://example.org/b.git",
         });
+    });
+
+    test("an injection of unknown keys only still clears the earlier environment", async () => {
+        const service = await newService();
+        await service.inject({ environment: { GIT_USER: "Ada" } });
+        await service.inject({ environment: { EVIL: "x" } });
+        assert.deepStrictEqual(await service.getEnvVars(["GIT_USER", "EVIL"]), {});
     });
 
     test("an internal error does not leak its message", async () => {

@@ -38,9 +38,10 @@ without details.
 
 An injection replaces everything stored before, so the operator can safely repeat a
 failed injection. Only known keys are stored: `THEIA`, `TEMPLATE`, `GIT_URI`,
-`GIT_USER`, `GIT_MAIL`, `ARTEMIS_URL`, `ARTEMIS_TOKEN`, `GRADLE_PREWARM`,
+`GIT_USER`, `GIT_MAIL`, `GIT_REF`, `GIT_SOURCE`, `ARTEMIS_URL`, `ARTEMIS_TOKEN`, `GRADLE_PREWARM`,
 `GRADLE_PREWARM_AUTO_CONFIRM` and `THEIACLOUD_SESSION_SECRET`. Any other key is
-ignored and a warning is logged. Deployments that inject further keys (for example from
+ignored and a warning is logged. The response lists the names of the ignored keys as
+`{"ignored": [...]}` (never the values), and the operator logs them. Deployments that inject further keys (for example from
 a ConfigMap) list them, comma separated, in `DATA_BRIDGE_EXTRA_KEYS`.
 
 The server fails closed: if `DATA_BRIDGE_TOKEN` is unset (or empty), every

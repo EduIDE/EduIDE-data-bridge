@@ -29,7 +29,7 @@ export default class DataStorage {
     // Every browser window runs its own copy of this extension, and only the one holding the
     // port receives the injection. The others pick it up from the shared secret storage.
     public async reload(): Promise<void> {
-        Object.assign(this.storage.environment, await this.persistence.loadAll());
+        this.storage.environment = await this.persistence.loadAll();
     }
 
     public getEnv(key: string): string | undefined {
