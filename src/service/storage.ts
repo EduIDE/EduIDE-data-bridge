@@ -36,9 +36,11 @@ export default class DataStorage {
         return this.storage.environment[key];
     }
 
-    public async setEnv(key: string, value: string): Promise<void> {
-        this.storage.environment[key] = value;
-        logger.debug(`Environment variable set: ${key}`);
+    // Replaces the whole environment before the first await, so a reader never sees half of an
+    // injection. The operator resends the same payload when it retries, which makes this idempotent.
+    public async replaceEnvs(environment: Record<string, string>): Promise<void> {
+        this.storage.environment = { ...environment };
+        logger.debug(`Environment variable(s) set: ${Object.keys(environment).join(", ")}`);
         if (this.persistence) {
             await this.persistence.saveAll(this.storage.environment);
         }

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 import { dataInjectRequestSchema } from "./schema.ts";
 import { type } from "arktype";
@@ -9,6 +10,9 @@ import { timingSafeEqual } from "node:crypto";
 import logger from "./service/logger.ts";
 
 const DEFAULT_PORT = 16281;
+
+// The injection is a handful of short strings; this leaves room for long tokens only.
+const MAX_BODY_BYTES = 64 * 1024;
 
 // Name of the env var holding the token the server requires on every
 // state-changing request. The operator keeps one random token per prewarmed pool
@@ -81,6 +85,10 @@ export function createApp(dataService: DataService) {
     app.post(
         "/data",
         requireAuth,
+        bodyLimit({
+            maxSize: MAX_BODY_BYTES,
+            onError: (c) => c.json({ error: "Payload too large" }, 413),
+        }),
         validator("json", (value, c) => {
             const parsed = dataInjectRequestSchema(value);
             if (parsed instanceof type.errors) {
@@ -167,7 +175,18 @@ export function startServer(dataService: DataService): ServerType | undefined {
             hostname,
         });
 
-        logger.info(`HTTP server started on http://${hostname}:${port}`);
+        // Every browser window runs its own bridge and only the first one gets the port, so a
+        // failed bind is expected and must not be reported as a started server.
+        server.on("listening", () => {
+            logger.info(`HTTP server started on http://${hostname}:${port}`);
+        });
+        server.on("error", (error: NodeJS.ErrnoException) => {
+            if (error.code === "EADDRINUSE") {
+                logger.info(`Port ${port} is taken, another window serves the data bridge`);
+            } else {
+                logger.error("HTTP server error", error);
+            }
+        });
 
         return server;
     } catch (error) {

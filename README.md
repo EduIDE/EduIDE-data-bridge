@@ -32,6 +32,17 @@ bridge.
 The token is compared in constant time. Requests with a missing or wrong token are
 rejected with `401`.
 
+After authentication the request is checked: a body that does not match the schema
+gets `400`, a body over 64 KiB gets `413`, and an internal error gets a generic `500`
+without details.
+
+An injection replaces everything stored before, so the operator can safely repeat a
+failed injection. Only known keys are stored: `THEIA`, `TEMPLATE`, `GIT_URI`,
+`GIT_USER`, `GIT_MAIL`, `ARTEMIS_URL`, `ARTEMIS_TOKEN`, `GRADLE_PREWARM`,
+`GRADLE_PREWARM_AUTO_CONFIRM` and `THEIACLOUD_SESSION_SECRET`. Any other key is
+ignored and a warning is logged. Deployments that inject further keys (for example from
+a ConfigMap) list them, comma separated, in `DATA_BRIDGE_EXTRA_KEYS`.
+
 The server fails closed: if `DATA_BRIDGE_TOKEN` is unset (or empty), every
 `POST /data` request is rejected with `401` and a warning is logged at startup.
 There is no "no auth" mode.
@@ -57,7 +68,9 @@ The extension exposes a set of VSCode commands to handle retrieval of data.
 
 ### Data Storage
 
-The extension will store the data in memory.
+The extension will store the data in memory and in the VS Code secret storage.
+
+Every browser window starts its own plugin host and its own bridge, and only the first one gets the port. `dataBridge.getEnv` therefore re-reads the secret storage on every call, so the other windows receive the injected environment too.
 
 ## Development
 
@@ -115,3 +128,8 @@ CommonJS into `out/`. `.vscode-test.mjs` then picks up `out/test/**/*.test.js`.
 
 Renovate keeps dependencies current. `renovate.json` extends the org-wide preset in
 [`EduIDE/.github`](https://github.com/EduIDE/.github), so repo-local config stays minimal.
+
+`package.json` pins pnpm in `packageManager`, and CI and Renovate both use that version. Keep it on
+pnpm 10 while the overrides live under `pnpm.overrides` in `package.json`: pnpm 11 ignores that
+field, drops the overrides from the lockfile, and `pnpm install --frozen-lockfile` then fails with
+`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.

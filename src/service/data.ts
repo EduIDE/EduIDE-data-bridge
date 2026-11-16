@@ -1,4 +1,4 @@
-import type { DataInjectRequest, getEnvCommandRequest } from "../schema.ts";
+import { allowedKeys, type DataInjectRequest, type getEnvCommandRequest } from "../schema.ts";
 import type DataStorage from "./storage.ts";
 import logger from "./logger.ts";
 
@@ -10,11 +10,18 @@ class DataService {
     }
 
     public async inject(request: DataInjectRequest): Promise<void> {
-        const keys = Object.keys(request.environment).length;
-        logger.debug(`Injecting ${keys} environment variable(s)`);
-        for (const [key, value] of Object.entries(request.environment)) {
-            await this.storage.setEnv(key, value);
+        const allowed = allowedKeys();
+        const entries = Object.entries(request.environment);
+        const environment = Object.fromEntries(entries.filter(([key]) => allowed.has(key)));
+        const dropped = entries.length - Object.keys(environment).length;
+        if (dropped > 0) {
+            logger.warn(`Ignored ${dropped} environment variable(s) with an unknown name`);
         }
+        logger.debug(`Injecting ${Object.keys(environment).length} environment variable(s)`);
+        if (Object.keys(environment).length === 0) {
+            return;
+        }
+        await this.storage.replaceEnvs(environment);
     }
 
     public async getEnvVars(request: getEnvCommandRequest): Promise<Record<string, string>> {

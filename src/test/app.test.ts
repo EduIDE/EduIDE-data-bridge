@@ -1,7 +1,8 @@
 import * as assert from "assert";
 
 import type * as vscode from "vscode";
-import { createApp } from "../app.ts";
+import * as net from "net";
+import { createApp, startServer } from "../app.ts";
 import DataService from "../service/data.ts";
 import DataStorage from "../service/storage.ts";
 import SecretStoragePersistence from "../service/persistence.ts";
@@ -16,20 +17,26 @@ function inMemorySecrets(): vscode.SecretStorage {
     } as unknown as vscode.SecretStorage;
 }
 
-async function newApp(): Promise<ReturnType<typeof createApp>> {
+async function newService(): Promise<DataService> {
     const persistence = new SecretStoragePersistence(inMemorySecrets());
-    const storage = await DataStorage.withPersistence(persistence);
-    return createApp(new DataService(storage));
+    return new DataService(await DataStorage.withPersistence(persistence));
 }
 
-function injectRequest(headers: Record<string, string> = {}): RequestInit {
+async function newApp(): Promise<ReturnType<typeof createApp>> {
+    return createApp(await newService());
+}
+
+function injectRequest(
+    headers: Record<string, string> = {},
+    body: unknown = undefined,
+): RequestInit {
     return {
         method: "POST",
         headers: {
             "content-type": "application/json",
             ...headers,
         },
-        body: JSON.stringify({ environment: { ARTEMIS_TOKEN: "token-123" } }),
+        body: JSON.stringify(body ?? { environment: { ARTEMIS_TOKEN: "token-123" } }),
     };
 }
 
@@ -108,5 +115,100 @@ suite("Data Bridge - HTTP authentication", () => {
         const app = await newApp();
         const res = await app.request("/health");
         assert.strictEqual(res.status, 200);
+    });
+});
+
+suite("Data Bridge - request handling", () => {
+    const TOKEN = "correct-horse-battery-staple";
+    const auth = { Authorization: `Bearer ${TOKEN}` };
+    let savedToken: string | undefined;
+
+    setup(() => {
+        savedToken = process.env.DATA_BRIDGE_TOKEN;
+        process.env.DATA_BRIDGE_TOKEN = TOKEN;
+    });
+
+    teardown(() => {
+        delete process.env.DATA_BRIDGE_EXTRA_KEYS;
+        if (savedToken === undefined) {
+            delete process.env.DATA_BRIDGE_TOKEN;
+        } else {
+            process.env.DATA_BRIDGE_TOKEN = savedToken;
+        }
+    });
+
+    test("a schema error is a 400, and an unauthenticated one is still a 401", async () => {
+        const app = await newApp();
+        const bad = injectRequest(auth, { environment: { GIT_USER: 1 } });
+        assert.strictEqual((await app.request("/data", bad)).status, 400);
+        assert.strictEqual(
+            (await app.request("/data", injectRequest({}, { nope: 1 }))).status,
+            401,
+        );
+    });
+
+    test("rejects a body over the size limit", async () => {
+        const app = await newApp();
+        const big = injectRequest(auth, { environment: { GIT_USER: "x".repeat(70 * 1024) } });
+        assert.strictEqual((await app.request("/data", big)).status, 413);
+    });
+
+    test("stores known keys only", async () => {
+        const service = await newService();
+        const app = createApp(service);
+        const res = await app.request(
+            "/data",
+            injectRequest(auth, { environment: { GIT_USER: "Ada", EVIL: "x" } }),
+        );
+        assert.strictEqual(res.status, 200);
+        assert.deepStrictEqual(await service.getEnvVars(["GIT_USER", "EVIL"]), { GIT_USER: "Ada" });
+    });
+
+    test("stores keys listed in DATA_BRIDGE_EXTRA_KEYS", async () => {
+        process.env.DATA_BRIDGE_EXTRA_KEYS = "COURSE_ID, OTHER";
+        const service = await newService();
+        await service.inject({ environment: { COURSE_ID: "42", EVIL: "x" } });
+        assert.deepStrictEqual(await service.getEnvVars(["COURSE_ID", "EVIL"]), {
+            COURSE_ID: "42",
+        });
+    });
+
+    test("an injection replaces the stored environment, and repeating it changes nothing", async () => {
+        const service = await newService();
+        await service.inject({
+            environment: { GIT_URI: "https://example.org/a.git", GIT_USER: "Ada" },
+        });
+        const second = { environment: { GIT_URI: "https://example.org/b.git" } };
+        await service.inject(second);
+        await service.inject(second);
+        assert.deepStrictEqual(await service.getEnvVars(["GIT_URI", "GIT_USER"]), {
+            GIT_URI: "https://example.org/b.git",
+        });
+    });
+
+    test("an internal error does not leak its message", async () => {
+        const service = await newService();
+        service.inject = async () => {
+            throw new Error("secret internal detail");
+        };
+        const res = await createApp(service).request("/data", injectRequest(auth));
+        assert.strictEqual(res.status, 500);
+        assert.ok(!(await res.text()).includes("secret internal detail"));
+    });
+
+    test("a second server on a taken port does not crash", async () => {
+        const blocker = net.createServer();
+        await new Promise<void>((resolve) => blocker.listen(0, "0.0.0.0", resolve));
+        const port = (blocker.address() as net.AddressInfo).port;
+        process.env.DATA_BRIDGE_PORT = String(port);
+        try {
+            const server = startServer(await newService());
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            assert.ok(server);
+            server.close();
+        } finally {
+            delete process.env.DATA_BRIDGE_PORT;
+            blocker.close();
+        }
     });
 });
