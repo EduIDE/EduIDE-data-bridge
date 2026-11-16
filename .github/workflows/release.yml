@@ -1,7 +1,7 @@
 # Manual release. The only way data-bridge releases.
 #
-#   gh workflow run release.yml -R EduIDE/EduIDE-data-bridge --ref main -f version=0.0.18
-#   gh workflow run release.yml -R EduIDE/EduIDE-data-bridge --ref my-branch -f version=0.0.18-rc.1
+#   gh workflow run release.yml -R EduIDE/EduIDE-data-bridge --ref main -f version=2.1.0
+#   gh workflow run release.yml -R EduIDE/EduIDE-data-bridge --ref my-branch -f version=2.1.0-rc.1
 #
 # The vsix is attached to the GitHub Release. A release candidate (-rc.N) makes
 # a prerelease. Nothing is published to a registry.
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version without the leading v, e.g. 0.0.18, or 0.0.18-rc.1 for a prerelease"
+        description: "Version without the leading v, e.g. 2.1.0, or 2.1.0-rc.1 for a prerelease"
         required: true
         type: string
 

@@ -1,13 +1,13 @@
 # Theia Data Bridge
 
-The theia creential bridge is a VSCode extension allowing injecting and retrieving data. The injection is done via HTTP requests
+The Theia data bridge is a VSCode extension allowing injecting and retrieving data. The injection is done via HTTP requests
 from the VSCode host and the retrieval is handled using VSCode commands.
 
 ## Architecture
 
-### CredDataential Injection
+### Data Injection
 
-The extension exposes a lean HTTP server running on `0.0.0.0:16281`.
+The extension exposes a lean HTTP server running on `0.0.0.0:16281`. Set `DATA_BRIDGE_PORT` to use another port; a value that is not a number from 1 to 65535 falls back to `16281`.
 
 It offers an endpoint `POST /data` to inject data.
 
