@@ -6,15 +6,22 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-16
+
 ### Breaking changes
 
-- `POST /data` requires the instance token as `Authorization: Bearer <token>`, compared in constant time. The token comes from `DATA_BRIDGE_TOKEN`, which the operator sets from a per-instance Secret; without it the bridge rejects every injection. Needs EduIDE-Cloud with the matching operator and the chart that lets it manage the Secrets, rolled out first ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- `POST /data` requires the per-instance bearer token as `Authorization: Bearer <token>`, compared in constant time (DB-01). The token comes from `DATA_BRIDGE_TOKEN`, which the operator sets from a per-instance Secret. Without a configured or matching token the bridge rejects every write. `GET /health` stays public ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- Only known keys are accepted (DB-02): `THEIA`, `TEMPLATE`, `GIT_URI`, `GIT_USER`, `GIT_MAIL`, `GIT_REF`, `GIT_SOURCE`, `ARTEMIS_URL`, `ARTEMIS_TOKEN`, `GRADLE_PREWARM`, `GRADLE_PREWARM_AUTO_CONFIRM` and `THEIACLOUD_SESSION_SECRET`. Other keys are ignored and the response names them. Installations that inject further keys list them in `DATA_BRIDGE_EXTRA_KEYS` ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- An injection replaces the stored environment instead of merging into it, so repeating an injection changes nothing ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- A schema error returns `400` instead of `401`, a body over 64 KiB returns `413`, and a failure returns a generic `500` without the internal message ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
 
 ### Fixes
 
-- A schema error returns `400` instead of `401`, a body over 64 KiB returns `413`, and a failure returns a generic `500` without the internal message ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
-- Only known keys are stored, including `GIT_REF` and `GIT_SOURCE` (others are ignored, the response names them, extend with `DATA_BRIDGE_EXTRA_KEYS`), and an injection replaces the stored environment so a repeated injection changes nothing ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
 - A second browser window whose bridge cannot bind the port no longer logs that the server started or leaves an unhandled error ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+
+### Upgrade notes
+
+- Deploy the EduIDE-Cloud 3.0.0 operator and the EduIDE-Helm chart with the token Secret Role before IDE images that contain this release. A new operator works with the old bridge, but an old operator against this bridge fails every injection with `401`.
 
 ## [1.0.0] - 2026-11-16
 
