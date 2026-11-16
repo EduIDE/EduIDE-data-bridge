@@ -29,16 +29,17 @@ export default class DataStorage {
     // Every browser window runs its own copy of this extension, and only the one holding the
     // port receives the injection. The others pick it up from the shared secret storage.
     public async reload(): Promise<void> {
-        Object.assign(this.storage.environment, await this.persistence.loadAll());
+        this.storage.environment = await this.persistence.loadAll();
     }
 
     public getEnv(key: string): string | undefined {
         return this.storage.environment[key];
     }
 
-    // Sets every value before the first await, so a reader never sees half of an injection.
-    public async setEnvs(environment: Record<string, string>): Promise<void> {
-        Object.assign(this.storage.environment, environment);
+    // Replaces the whole environment before the first await, so a reader never sees half of an
+    // injection. The operator resends the same payload when it retries, which makes this idempotent.
+    public async replaceEnvs(environment: Record<string, string>): Promise<void> {
+        this.storage.environment = { ...environment };
         logger.debug(`Environment variable(s) set: ${Object.keys(environment).join(", ")}`);
         if (this.persistence) {
             await this.persistence.saveAll(this.storage.environment);

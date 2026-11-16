@@ -78,6 +78,25 @@ suite("Environment shared across browser windows", () => {
         assert.ok(seen.length === 0 || seen.length === keys.length, `saw only ${seen}`);
     });
 
+    test("a later injection replaces the values in every window", async () => {
+        const secrets = sharedSecrets();
+        const first = await newWindow(secrets);
+        const second = await newWindow(secrets);
+        await first.inject({
+            environment: { GIT_URI: "https://example.org/a.git", GIT_USER: "Ada" },
+        });
+        await second.getEnvVars(["GIT_URI", "GIT_USER"]);
+
+        await first.inject({ environment: { GIT_URI: "https://example.org/b.git" } });
+
+        assert.deepStrictEqual(await second.getEnvVars(["GIT_URI", "GIT_USER"]), {
+            GIT_URI: "https://example.org/b.git",
+        });
+        assert.deepStrictEqual(await first.getEnvVars(["GIT_URI", "GIT_USER"]), {
+            GIT_URI: "https://example.org/b.git",
+        });
+    });
+
     test("an empty injection writes nothing", async () => {
         const secrets = sharedSecrets();
         let writes = 0;

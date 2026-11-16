@@ -6,6 +6,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `POST /data` requires the instance token as `Authorization: Bearer <token>`, compared in constant time. The token comes from `DATA_BRIDGE_TOKEN`, which the operator sets from a per-instance Secret; without it the bridge rejects every injection. Needs EduIDE-Cloud with the matching operator and the chart that lets it manage the Secrets, rolled out first ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+
+### Fixes
+
+- A schema error returns `400` instead of `401`, a body over 64 KiB returns `413`, and a failure returns a generic `500` without the internal message ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- Only known keys are stored, including `GIT_REF` and `GIT_SOURCE` (others are ignored, the response names them, extend with `DATA_BRIDGE_EXTRA_KEYS`), and an injection replaces the stored environment so a repeated injection changes nothing ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+- A second browser window whose bridge cannot bind the port no longer logs that the server started or leaves an unhandled error ([#12](https://github.com/EduIDE/EduIDE-data-bridge/pull/12))
+
 ## [1.0.0] - 2026-11-16
 
 First stable release, for the EduIDE 3.0 platform.
