@@ -12,9 +12,10 @@ class DataService {
     public async inject(request: DataInjectRequest): Promise<void> {
         const keys = Object.keys(request.environment).length;
         logger.debug(`Injecting ${keys} environment variable(s)`);
-        for (const [key, value] of Object.entries(request.environment)) {
-            await this.storage.setEnv(key, value);
+        if (keys === 0) {
+            return;
         }
+        await this.storage.setEnvs(request.environment);
     }
 
     public async getEnvVars(request: getEnvCommandRequest): Promise<Record<string, string>> {
