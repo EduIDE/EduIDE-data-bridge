@@ -36,9 +36,10 @@ export default class DataStorage {
         return this.storage.environment[key];
     }
 
-    public async setEnv(key: string, value: string): Promise<void> {
-        this.storage.environment[key] = value;
-        logger.debug(`Environment variable set: ${key}`);
+    // Sets every value before the first await, so a reader never sees half of an injection.
+    public async setEnvs(environment: Record<string, string>): Promise<void> {
+        Object.assign(this.storage.environment, environment);
+        logger.debug(`Environment variable(s) set: ${Object.keys(environment).join(", ")}`);
         if (this.persistence) {
             await this.persistence.saveAll(this.storage.environment);
         }
