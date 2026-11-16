@@ -3,6 +3,7 @@
     "displayName": "Data Bridge",
     "description": "Allows runtime configuration of cloud-based Theia IDEs",
     "version": "0.0.1",
+    "packageManager": "pnpm@10.34.9",
     "publisher": "tum-aet",
     "repository": {
         "type": "git",
